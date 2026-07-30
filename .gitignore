@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+
+# Gegenereerde output
+tuinkalender.html
+print.html
+Tuinkalender-print.pdf
+
+# Previews en tussenbestanden
+imgs/p*.png
+chk*.png
+pv*.png
+v2_*.png
+w[0-9].png
+x[0-9].png
+y[0-9].png
+zoom.png
+buildlog.txt

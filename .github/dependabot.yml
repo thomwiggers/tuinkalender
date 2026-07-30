@@ -1,0 +1,26 @@
+version: 2
+
+updates:
+  # Actions in de Pages-workflow (checkout, setup-python, deploy-pages, ...)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # weasyprint + pillow uit requirements.txt
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps"
+    groups:
+      python:
+        patterns: ["*"]

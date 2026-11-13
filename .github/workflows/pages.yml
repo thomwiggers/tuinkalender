@@ -3,6 +3,8 @@ name: Publiceer tuinkalender
 on:
   push:
     branches: [main]
+  # Bouwt (maar publiceert niet) bij pull requests, als controle.
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -10,10 +12,11 @@ permissions:
   pages: write
   id-token: write
 
-# Eén publicatie tegelijk; lopende runs niet afbreken.
+# Eén publicatie tegelijk; lopende runs niet afbreken. Pull requests krijgen
+# een eigen groep, zodat ze niet achter een publicatie in de rij staan.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -61,11 +64,13 @@ jobs:
           cp Tuinkalender-print.pdf site/
 
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: site
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -73,3 +78,28 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Dependabot-PR's samenvoegen zodra de bouw hierboven slaagt. Mislukt de
+  # bouw, dan wordt deze job overgeslagen en blijft de PR openstaan.
+  automerge:
+    name: Dependabot-PR samenvoegen
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Squash-merge
+        run: gh pr merge "$PR" --squash --match-head-commit "$SHA"
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+      # Een merge met GITHUB_TOKEN start geen push-workflow, dus de publicatie
+      # wordt hier met de hand gestart.
+      - name: Publicatie starten op main
+        run: gh workflow run pages.yml --ref main
